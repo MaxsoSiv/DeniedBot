@@ -259,11 +259,4 @@ keep_alive()
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
 
-    
-    token = os.getenv('DISCORD_TOKEN')
-    if token is None:
-        print("Ошибка: DISCORD_TOKEN не найден в переменных окружения!")
-        print("Убедитесь, что файл .env существует и содержит DISCORD_TOKEN")
-    else:
-        bot.run(token)
 
