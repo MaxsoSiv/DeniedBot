@@ -7,6 +7,7 @@ import os
 from typing import TYPE_CHECKING, Self
 from pathlib import Path
 from dotenv import load_dotenv
+import datetime
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -20,13 +21,15 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Файл для хранения запрещенных эмодзи
 BANNED_EMOJIS_FILE = Path('banned_emojis.json')
+BACKUP_FOLDER = Path('backups')
+
+# Создаем папку для бэкапов если ее нет
+BACKUP_FOLDER.mkdir(exist_ok=True)
 
 # Список эмодзи флагов стран
 DEFAULT_COUNTRY_FLAGS = [
     '🇷🇺', '🇺🇦', '🇺🇸', '🇬🇧', '🇩🇪', '🇫🇷', '🇨🇳', '🇯🇵', '🇰🇷',
-    '🇮🇹', '🇪🇸', '🇨🇦', '🇦🇺', '🇧🇷', '🇮🇳', '🇵🇱', '🇹🇷', '🇸🇦',
-    '🇿', '🇴', '🇻', '✝', '☪', '✡', '🔯', '🕉', '☸', 
-    '☦', '🕎', '⚧', '🏳️‍🌈', '🏳️‍⚧️'
+    '🇮🇹', '🇪🇸', '🇨🇦', '🇦🇺', '🇧🇷', '🇮🇳', '🇵🇱', '🇹🇷', '🇸🇦'
 ]
 
 class EmojiModerator(commands.Cog):
@@ -38,8 +41,12 @@ class EmojiModerator(commands.Cog):
     def load_banned_emojis(self: Self) -> list[str]:
         """Загружаем запрещенные эмодзи из файла"""
         if BANNED_EMOJIS_FILE.exists():
-            with BANNED_EMOJIS_FILE.open('r', encoding='utf-8') as f:
-                return json.load(f)
+            try:
+                with BANNED_EMOJIS_FILE.open('r', encoding='utf-8') as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                print("Ошибка: Файл banned_emojis.json поврежден!")
+                return []
         return []
 
     def save_banned_emojis(self: Self, emojis: Iterable[str]) -> None:
@@ -61,7 +68,7 @@ class EmojiModerator(commands.Cog):
                 await message.delete()
                 warning_embed = discord.Embed(
                     title="⚠️ Предупреждение",
-                    description=f"{message.author.mention}, запрещено использовать данные эмодзи!",
+                    description=f"{message.author.mention}, использование флагов стран запрещено!",
                     color=discord.Color.orange()
                 )
                 await message.channel.send(embed=warning_embed, delete_after=10)
@@ -80,12 +87,12 @@ class EmojiModerator(commands.Cog):
                 try:
                     warning_dm = discord.Embed(
                         title="⚠️ Предупреждение",
-                        description="Запрещено использовать данные реакции!",
+                        description="Использование реакций с флагами стран запрещено!",
                         color=discord.Color.orange()
                     )
                     await user.send(embed=warning_dm)
                 except:
-                    warning_chat = f"{user.mention}, запрещено использовать данные эмодзи!"
+                    warning_chat = f"{user.mention}, использование реакций с флагами стран запрещено!"
                     await reaction.message.channel.send(warning_chat, delete_after=10)
             except Exception as e:
                 print(f"Ошибка при обработке реакции: {e}")
@@ -144,6 +151,67 @@ class EmojiModerator(commands.Cog):
         )
         await ctx.send(embed=embed)
 
+    @commands.command(name='backup')
+    @commands.has_permissions(administrator=True)
+    async def backup(self: Self, ctx: commands.Context) -> None:
+        """Создает резервную копию файла с запрещенными эмодзи"""
+        try:
+            if not BANNED_EMOJIS_FILE.exists():
+                await ctx.send("❌ Файл с запрещенными эмодзи не существует!")
+                return
+
+            # Создаем имя файла с timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"banned_emojis_backup_{timestamp}.json"
+            backup_path = BACKUP_FOLDER / backup_filename
+
+            # Копируем файл
+            import shutil
+            shutil.copy2(BANNED_EMOJIS_FILE, backup_path)
+
+            # Отправляем файл в чат
+            await ctx.send(
+                content="✅ Резервная копия создана!",
+                file=discord.File(backup_path)
+            )
+
+            # Удаляем временный файл после отправки (опционально)
+            # backup_path.unlink()
+
+        except Exception as e:
+            await ctx.send(f"❌ Ошибка при создании резервной копии: {e}")
+
+    @commands.command(name='restore')
+    @commands.has_permissions(administrator=True)
+    async def restore(self: Self, ctx: commands.Context) -> None:
+        """Восстанавливает запрещенные эмодзи из файла"""
+        try:
+            if not ctx.message.attachments:
+                await ctx.send("❌ Пожалуйста, прикрепите .json файл для восстановления!")
+                return
+
+            attachment = ctx.message.attachments[0]
+            if not attachment.filename.endswith('.json'):
+                await ctx.send("❌ Файл должен быть в формате .json!")
+                return
+
+            # Скачиваем файл
+            await attachment.save(BANNED_EMOJIS_FILE)
+
+            # Перезагружаем данные
+            self.banned_emojis = self.load_banned_emojis()
+            self.all_banned_emojis = set(DEFAULT_COUNTRY_FLAGS + self.banned_emojis)
+
+            embed = discord.Embed(
+                title="✅ Восстановление завершено",
+                description="Список запрещенных эмодзи успешно восстановлен из файла!",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            await ctx.send(f"❌ Ошибка при восстановлении: {e}")
+
 @bot.event
 async def on_ready() -> None:
     await bot.add_cog(EmojiModerator(bot))
@@ -156,5 +224,4 @@ if __name__ == "__main__":
         print("Ошибка: DISCORD_TOKEN не найден в переменных окружения!")
         print("Убедитесь, что файл .env существует и содержит DISCORD_TOKEN")
     else:
-
         bot.run(token)
