@@ -8,12 +8,34 @@ from typing import TYPE_CHECKING, Self
 from pathlib import Path
 from dotenv import load_dotenv
 import datetime
+import threading
+from flask import Flask, jsonify
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
 # Загружаем переменные из .env файла
 load_dotenv()
+
+# Инициализация Flask приложения
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "online",
+        "bot": "DeniedBot",
+        "description": "Discord bot for moderating emojis"
+    })
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"})
+
+def run_flask():
+    """Запускает Flask сервер в отдельном потоке"""
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
 # Настройки бота
 intents = discord.Intents.all()
@@ -175,9 +197,6 @@ class EmojiModerator(commands.Cog):
                 file=discord.File(backup_path)
             )
 
-            # Удаляем временный файл после отправки (опционально)
-            # backup_path.unlink()
-
         except Exception as e:
             await ctx.send(f"❌ Ошибка при создании резервной копии: {e}")
 
@@ -219,6 +238,11 @@ async def on_ready() -> None:
 
 # Запуск бота
 if __name__ == "__main__":
+    # Запускаем Flask в отдельном потоке
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("Flask сервер запущен на порту 8080")
+    
     token = os.getenv('DISCORD_TOKEN')
     if token is None:
         print("Ошибка: DISCORD_TOKEN не найден в переменных окружения!")
