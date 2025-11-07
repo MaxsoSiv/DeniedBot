@@ -24,7 +24,9 @@ BANNED_EMOJIS_FILE = Path('banned_emojis.json')
 # Список эмодзи флагов стран
 DEFAULT_COUNTRY_FLAGS = [
     '🇷🇺', '🇺🇦', '🇺🇸', '🇬🇧', '🇩🇪', '🇫🇷', '🇨🇳', '🇯🇵', '🇰🇷',
-    '🇮🇹', '🇪🇸', '🇨🇦', '🇦🇺', '🇧🇷', '🇮🇳', '🇵🇱', '🇹🇷', '🇸🇦'
+    '🇮🇹', '🇪🇸', '🇨🇦', '🇦🇺', '🇧🇷', '🇮🇳', '🇵🇱', '🇹🇷', '🇸🇦',
+    '🇿', '🇴', '🇻', '✝', '☪', '✡', '🔯', '🕉', '☸', 
+    '☦', '🕎', '⚧', '🏳️‍🌈', '🏳️‍⚧️'
 ]
 
 class EmojiModerator(commands.Cog):
@@ -59,7 +61,7 @@ class EmojiModerator(commands.Cog):
                 await message.delete()
                 warning_embed = discord.Embed(
                     title="⚠️ Предупреждение",
-                    description=f"{message.author.mention}, использование флагов стран запрещено!",
+                    description=f"{message.author.mention}, запрещено использовать данные эмодзи!",
                     color=discord.Color.orange()
                 )
                 await message.channel.send(embed=warning_embed, delete_after=10)
@@ -78,12 +80,12 @@ class EmojiModerator(commands.Cog):
                 try:
                     warning_dm = discord.Embed(
                         title="⚠️ Предупреждение",
-                        description="Использование реакций с флагами стран запрещено!",
+                        description="Запрещено использовать данные реакции!",
                         color=discord.Color.orange()
                     )
                     await user.send(embed=warning_dm)
                 except:
-                    warning_chat = f"{user.mention}, использование реакций с флагами стран запрещено!"
+                    warning_chat = f"{user.mention}, запрещено использовать данные эмодзи!"
                     await reaction.message.channel.send(warning_chat, delete_after=10)
             except Exception as e:
                 print(f"Ошибка при обработке реакции: {e}")
@@ -154,4 +156,5 @@ if __name__ == "__main__":
         print("Ошибка: DISCORD_TOKEN не найден в переменных окружения!")
         print("Убедитесь, что файл .env существует и содержит DISCORD_TOKEN")
     else:
+
         bot.run(token)
