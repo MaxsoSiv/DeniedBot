@@ -231,32 +231,21 @@ class EmojiModerator(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ Ошибка при восстановлении: {e}")
 
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "🤖 Discord Bot is Online! | Status: ✅ Running"
-
-@app.route('/health')
-def health():
-    return "OK", 200
-
-def run_flask():
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)
-
-def keep_alive():
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    print(f"🌐 Flask server started for Render compatibility")
-
-# Запускаем Flask сервер
-keep_alive()
-# ==================== END RENDER FIX ====================
+@bot.event
+async def on_ready() -> None:
+    await bot.add_cog(EmojiModerator(bot))
+    print(f'Бот {bot.user} запущен!')
 
 # Запуск бота
 if __name__ == "__main__":
-    bot.run(DISCORD_TOKEN)
-
-
+    # Запускаем Flask в отдельном потоке
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("🌐 Flask server started for Render compatibility")
+    
+    token = os.getenv('DISCORD_TOKEN')
+    if token is None:
+        print("Ошибка: DISCORD_TOKEN не найден в переменных окружения!")
+        print("Убедитесь, что файл .env существует и содержит DISCORD_TOKEN")
+    else:
+        bot.run(token)  # Исправлено: используем переменную token, а не DISCORD_TOKEN
